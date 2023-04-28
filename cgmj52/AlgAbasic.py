@@ -325,7 +325,108 @@ added_note = ""
 ############
 
 
-''''''
+
+
+
+
+
+
+
+
+from random import randint
+import threading 
+population_size = 10
+cities_list = list(range(num_cities))
+#num_cities and num_cities_as_string are variables 
+
+
+class embrio:
+
+    def __init__(self) -> None:
+        self.tour = ''#actual tour string
+        self.fitness = 0
+    def __lt__(self, other):
+        return self.fitness < other.fitness
+    def __gt__(self,other):
+        return self.fitness > other.fitness
+
+def create_tour():
+    cities_list = list(range(num_cities))
+    route = [0]*len(cities_list)
+    for i in range(num_cities):
+        route[i] = cities_list.pop(randint(0,len(cities_list)-1))
+    return route      
+
+def calculate_tour_length(route,matrix):
+    #go into matrix get wieghts of route then add to values 
+    weights = 0
+    for i in range(num_cities-1):
+        weights = weights + matrix[route[i]][route[i+1]]
+    weights = weights + matrix[route[0]][route[-1]]
+    return weights
+
+def create_population(pop_size):
+    i=0
+    population = []
+    fitness = []
+    while i < pop_size:
+        temp = create_tour()
+        fitness.append(calculate_tour_length(temp, dist_matrix))
+        population.append(temp)
+        i = i+1
+    return population,fitness
+
+def weighted_selection(population, fitness):
+    '''take the population in create pairs depending on population weights
+    return two of them and cut and mutate them X amount of times to refil population'''
+    parents = []
+    for i in range(2):
+        parent = random.choices(population,  weights=fitness, k=1)
+        parents.append(parent)
+    return parents
+
+def crossover_and_mutate(parents):
+    parent1 = parents[0]
+    parent2 = parents[1]
+    crossover_point = randint(1,num_cities-1)
+    p1half1 = parent1[crossover_point:]
+    p1half2 = parent1[:crossover_point]
+    p2half1 = parent2[:crossover_point]
+    p2half2 = parent2[crossover_point:]
+    child1 = p1half1 + 
+    child2 = parent2[crossover_point:] + parent1[:crossover_point]
+def genetic_algorithm(pop_size):
+    '''
+    create a population of children which are random tours
+        this needs to initialize the items and then create 
+        random tours for them and find the fitness
+        the save to population array
+    then swap values in the tours based on probabilty descided towards fitness
+    crossover
+    mutate
+    repeat 
+    return tuple of tour and toursize 
+    '''
+    
+    population,fitness = create_population(pop_size)
+    parents = weighted_selection(population, fitness)
+    crossover_and_mutate(parents)
+    
+
+
+
+
+
+
+
+
+    tour = list(range(num_cities))
+    tour_length = 208
+
+    return tour, tour_length
+tour, tour_length = genetic_algorithm(population_size)
+    
+
 
 
 
