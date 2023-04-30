@@ -346,21 +346,7 @@ added_note = ""
 
 # -------------------------setup populations
 
-
-class embrio:
-
-    def __init__(self) -> None:
-        self.tour = ''  # actual tour string
-        self.fitness = 0
-
-    def __lt__(self, other):
-        return self.fitness < other.fitness
-
-    def __gt__(self, other):
-        return self.fitness > other.fitness
-
-
-def create_tour():
+def generate_initial_tours():
     cities_list = list(range(num_cities))
     route = [0]*len(cities_list)
     for i in range(num_cities):
@@ -370,6 +356,7 @@ def create_tour():
 
 def calculate_tour_length(route):
     # go into matrix get wieghts of route then add to values
+
     weights = 0
     for i in range(num_cities-1):
         weights = weights + dist_matrix[route[i]][route[i+1]]
@@ -377,10 +364,11 @@ def calculate_tour_length(route):
     return weights
 
 
-def calculate_fitness(pop, fit):
-
+def calculate_fitness(pop):
+    fit = []
     for i in range(len(pop)):
-        fit[i] = calculate_tour_length(pop[i])
+        fit.append(calculate_tour_length(pop[i]))
+    return fit
 
 
 def create_population(pop_size):
@@ -388,7 +376,7 @@ def create_population(pop_size):
     population = []
     fitness = []
     while i < pop_size:
-        temp = create_tour()
+        temp = generate_initial_tours()
         fitness.append(calculate_tour_length(temp))
         population.append(temp)
         i = i+1
@@ -398,61 +386,54 @@ def create_population(pop_size):
 
 
 def weighted_selection(population, fitness):
-    '''take the population in create pairs depending on population weights
-    return them and cut and mutate them X amount of times to refil population'''
-    parents = []
-    inverted_fitness = [1 / 16 * fit if fit !=
-                        0 else float('inf') for fit in fitness]
-    total_inverted_fitness = sum(inverted_fitness)
-    normalized_fitness = [
-        fit / total_inverted_fitness for fit in inverted_fitness]
+    '''use tournament selection 
+    pick a random sample of individuals equal to the tounament size 
+    and keep the fittest indicidual'''
+    best_individual = None
+    best_fitness = float('inf')
 
-    for i in range(len(population)):
-        parent = random.choices(population,  weights=normalized_fitness, k=1)
+    for _ in range(tournament_size):
+        index = random.randint(0, len(population) - 1)
+        individual = population[index]
+        individual_fitness = fitness[index]
 
-        parents.append(parent[0])
+        if individual_fitness < best_fitness:
+            best_individual = individual
+            best_fitness = individual_fitness
 
-    return parents
+    return best_individual
 
 
-def crossover(parents):
-    parent1 = parents[0]
-    parent2 = parents[1]
-    size = len(parent1)
-    end = randint(0, size-1)
+def crossover(parent1, parent2):
+    end = random.sample(range(num_cities), 1)[0]
+    child = [-1] * num_cities
+    child[end] = parent1[end]
 
-    child1 = [-1] * size
-    child1[:end] = parent1[:end]
     for i, city in enumerate(parent2[end:] + parent2[:end]):
-        if city not in child1:
-            pos = (end + i) % size
-            child1[pos] = city
-
-    child2 = [-1] * size
-    child2[:end] = parent2[:end]
-
-    for i, city in enumerate(parent1[end:] + parent1[:end]):
-        if city not in child2:
-            pos = (end + i) % size
-            child2[pos] = city
-    return child1, child2
+        if city not in child:
+            pos = (end + i) % num_cities
+            child[pos] = city
+    return child
 
 
-def mutate(children):
-    '''take crossover and mutate using swap mutation'''
-    for child in children:
-        idx1, idx2 = random.sample(range(num_cities), 2)
-        child[idx1], child[idx2] = child[idx2], child[idx1]
-    return children
+def mutate(child):
+
+    idx1, idx2 = random.sample(range(num_cities), 2)
+    child[idx1], child[idx2] = child[idx2], child[idx1]
+    return child
 
 
 def procede_generation(pop, fit):
-    parent_array = weighted_selection(pop, fit)
-    for i in range(0, len(parent_array), 2):
-        # take the two parent elements and crossover and mutate them
 
-        crossover(parent_array[i:i+2])
-        mutate(parent_array[i:i+2])
+    newP = []
+    while len(newP) < population_size:
+        parent1 = weighted_selection(pop, fit)
+        parent2 = weighted_selection(pop, fit)
+        child = crossover(parent1, parent2)
+        if random.random() < mutation_probability:
+            mutate(child)
+        newP.append(child)
+    return newP
 
 
 def best_tour(pop, fit):
@@ -461,46 +442,27 @@ def best_tour(pop, fit):
     return best_tour, min_fitness
 
 
-def genetic_algorithm(population, fitness, tour, tour_length):
-    '''
-    create a population of children which are random tours
-        this needs to initialize the items and then create 
-        random tours for them and find the fitness
-        the save to population array
-    then swap values in the tours based on probabilty descided towards fitness
-    crossover
-    mutate
-    repeat 
-    return tuple of tour and toursize 
-    '''
-    population, fitness = create_population(population_size)
+def genetic_algorithm():
 
-    procede_generation(population, fitness)
-    calculate_fitness(population, fitness)
-    tour, tour_length = best_tour(population, fitness)
+    population, fitness = create_population(population_size)
+    start_time = time.time()
+    while time.time() - start_time < duration:
+
+        population = procede_generation(population, fitness)
+        fitness = calculate_fitness(population)
+
+        tour, tour_length = best_tour(population, fitness)
+
     return tour, tour_length
 
 
 population_size = 10
-cities_list = list(range(num_cities))
-population, fitness = create_population(population_size)
-tour = []
-tour_length = float('inf')
-start_time = time.time()
-duration = 60  # duration in seconds (60 seconds = 1 minute)
+crossover_probability = 0.8
+mutation_probability = 0.1
+tournament_size = 5
 
-while time.time() - start_time < duration:
-    old_tour, old_tour_length = tour, tour_length
-    old_pop, old_fitness = population, fitness
-    tour, tour_length = genetic_algorithm(
-        population, fitness, tour, tour_length)
-    if old_tour_length < tour_length:
-        population = old_pop
-        fitness = old_fitness
-        tour, tour_length = old_tour, old_tour_length
-    if tour_length == 56:
-        print('done', time.time() - start_time)
-        break
+duration = 55
+tour, tour_length = genetic_algorithm()
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
