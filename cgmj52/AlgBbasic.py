@@ -303,7 +303,7 @@ my_last_name = "maguire"
 ############
 # END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "GA"
+algorithm_code = "AC"
 
 # START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -339,11 +339,150 @@ added_note = ""
 # NOW YOUR CODE SHOULD BEGIN.
 ############
 
-'''potential places to improve the genetic algorithm apply one of these crossover methods 
-Edge Recombination Crossover (ERX)
-Cycle Crossover (CX)
-see if improvement '''
+'''ant colony steps
+need a matrix of pheramones that correspond to the edges of the graph
+our ants will
+    move from a source vertex until it reaches the destination vertex
+    then return back along the main path to the source. Not following loops
+    deposit pheremone on the edge it traversed as it returns. it then repeats the cycle
+    each ant move is synchronized. each move evaporatees pheramone
+    pheramones influence an ants descision probibalistically
+    this gives out a graph with pheramones which needs to have a path extracted from it
+you can use greedy searches or any other to findthe best path.
 
+skeleton params
+max number of itterations
+number of ants N
+initial pheremone deposit which is greatetr then 0
+pheramon decay rate
+pheramone deposit which is dependant on the edge and the ant
+
+skeleton
+input is a graph, and skeleton params
+initialize the pheremone level
+best solution
+place ants on vertices (random or specific)
+while itterations
+    for all ants
+        build a solution by building a trail with |V| edges
+        using the heuristic desirablity and phermone levels of edges
+        as ants are building trails the pheremons do not change
+        ant cycles are synchronized
+    look at the cost of their trails
+    if best is less
+        update best
+    deposit/evaporate pheramone
+    increment
+return best
+
+initial phermones are taken as N/length of nearest-neighbour algo
+city to city transition depends upon,
+    wether the destination city has been visited by an ant before.
+    heuristic desirability 1/distance capped at x
+    current pheromone level
+    use the probability function from lectures try understand it
+    end trail when all cities are in the immovable ones
+pheremone depositing can be done by using 1/Lk(t)
+use equations from slides 4,5 to get the rates of decay and putting down
+alpha = 1, beta 2<B<5; row(p) = 0.5 N=no cities t0 = N/Lnn
+'''
+
+
+class ant:
+    def __init__(self, num_cities):
+        self.path = []
+        self.not_visited_cities = [True] * num_cities
+
+    def visit_city(self, city):
+        self.path.append(city)
+        self.not_visited_cities[city] = False
+
+    def has_visited(self, city):
+        return self.not_visited_city[city]
+
+    def reset(self, num_cities):
+        self.path = []
+        self.visited_cities = [False]*num_cities
+
+    def choose_next(self, pheremone_matrix, current_city, num_cities):
+        '''look for the next city first descide on next route by using the desiciosn function 
+
+        check if it is in visited cities 
+
+        if not go to
+        if so try again 
+        else end path and return it'''
+        for i in range(num_cities):
+            if not self.has_visited(i):
+                # descision on the weights of available routes probably descide then see
+
+                # ---------------------initial setup
+
+
+def create_pheramone_matrix(number_of_rows, value):
+    matrix = []
+    row = [value] * number_of_rows
+    for i in range(number_of_rows):
+        matrix.append(row)
+    return matrix
+
+
+def initialize_ants(number_of_ants):
+    ants = []
+    for i in range(number_of_ants):
+        ants.append(ant(num_cities))
+    return (ants)
+
+
+def nearest_neighbour_search():
+    visited_cities = [False]*num_cities
+    visited_cities[0] = True
+    path = 0
+    current_city = 0
+
+    for i in range(num_cities-1):
+        nearest = None
+        min_distance = float('inf')
+        for city in range(num_cities):
+            if not visited_cities[city]:
+                dist = dist_matrix[current_city][city]
+                if dist < min_distance:
+                    nearest = city
+                    min_distance = dist
+        visited_cities[nearest] = True
+        path = path + nearest
+        current_city = nearest
+    return path + dist_matrix[current_city][0]
+
+
+def ant_search(no_ants,  decay_rate, alpha, beta, row):
+    ''''''
+    best = nearest_neighbour_search()  # NLL
+    initial_pheremones = num_cities/best
+    ants = initialize_ants
+    pheramone_matrix = create_pheramone_matrix(num_cities, initial_pheremones)
+    start_time = time.time()
+    while time.time() - start_time < 60:
+        for ant in ants:
+            '''build a solution by building a trail with |V| edges
+        using the heuristic desirablity and phermone levels of edges
+        as ants are building trails the pheremons do not change
+        ant cycles are synchronized '''
+
+    ''' look at the cost of their trails 
+    if best is less 
+        update best
+    deposit/evaporate pheramone
+    increment
+return best'''
+
+
+number_ants = 5
+decay_rate = 0.5
+
+
+tour = list(range(num_cities))
+tour_length = 208
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
 ############
@@ -360,7 +499,6 @@ see if improvement '''
 ############
 # DO NOT TOUCH OR ALTER THE CODE BELOW THIS POINT! YOU HAVE BEEN WARNED!
 ############
-
 flag = "good"
 length = len(tour)
 for i in range(0, length):
