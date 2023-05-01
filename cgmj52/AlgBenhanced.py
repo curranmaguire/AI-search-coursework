@@ -303,7 +303,7 @@ my_last_name = "maguire"
 ############
 # END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "GA"
+algorithm_code = "AC"
 
 # START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -339,10 +339,210 @@ added_note = ""
 # NOW YOUR CODE SHOULD BEGIN.
 ############
 
-'''potential places to improve the genetic algorithm apply one of these crossover methods 
-Edge Recombination Crossover (ERX)
-Cycle Crossover (CX)
-see if improvement '''
+'''ant colony steps
+need a matrix of pheramones that correspond to the edges of the graph
+our ants will
+    move from a source vertex until it reaches the destination vertex
+    then return back along the main path to the source. Not following loops
+    deposit pheremone on the edge it traversed as it returns. it then repeats the cycle
+    each ant move is synchronized. each move evaporatees pheramone
+    pheramones influence an ants descision probibalistically
+    this gives out a graph with pheramones which needs to have a path extracted from it
+you can use greedy searches or any other to findthe best path.
+
+skeleton params
+max number of itterations
+number of ants N
+initial pheremone deposit which is greatetr then 0
+pheramon decay rate
+pheramone deposit which is dependant on the edge and the ant
+
+skeleton
+input is a graph, and skeleton params
+initialize the pheremone level
+best solution
+place ants on vertices (random or specific)
+while itterations
+    for all ants
+        build a solution by building a trail with |V| edges
+        using the heuristic desirablity and phermone levels of edges
+        as ants are building trails the pheremons do not change
+        ant cycles are synchronized
+    look at the cost of their trails
+    if best is less
+        update best
+    deposit/evaporate pheramone
+    increment
+return best
+
+initial phermones are taken as N/length of nearest-neighbour algo
+city to city transition depends upon,
+    wether the destination city has been visited by an ant before.
+    heuristic desirability 1/distance capped at x
+    current pheromone level
+    use the probability function from lectures try understand it
+    end trail when all cities are in the immovable ones
+pheremone depositing can be done by using 1/Lk(t)
+use equations from slides 4,5 to get the rates of decay and putting down
+alpha = 1, beta 2<B<5; row(p) = 0.5 N=no cities t0 = N/Lnn
+'''
+
+
+class ant:
+    def __init__(self, num_cities):
+        self.path = [0]
+        self.current_city = 0
+        self.not_visited_cities = list(range(1,num_cities))
+
+    def visit_city(self, city):
+        self.path.append(city)
+        self.not_visited_cities.pop(self.not_visited_cities.index(city))
+        self.current_city = city
+
+    def has_visited(self, city):
+        return self.not_visited_city[city]
+
+    def reset(self, num_cities):
+        self.path = [0]
+        self.current_city = 0
+        self.not_visited_cities = list(range(1,num_cities))
+
+    def choose_next(self, pheremone_matrix, distance_matrix, alpha, beta):
+        '''recursively look at cities
+        create probabilites to decide on the next city to travel to
+        travel and call until the not_visited_cities is empty'''
+        #check iff the ant has visited all cities
+        if not self.not_visited_cities:
+            return self.path
+        #create the probability matrix for the ants
+        probabilites = []
+        for city in self.not_visited_cities:
+            #calulat the probabilites and create an array of them
+            pheremone = pheremone_matrix[self.current_city][city]**alpha
+            distance = distance_matrix[self.current_city][city] ** beta
+            probability = pheremone / distance
+            probabilites.append(probability)
+        
+        probabilites = [p/sum(probabilites) for p in probabilites]   
+        next_city = random.choices(self.not_visited_cities, weights= probabilites, k=1)[0]
+        self.visit_city(next_city)
+        
+        return self.choose_next(pheremone_matrix, distance_matrix, alpha, beta)
+
+
+
+
+# ---------------------initial setup-----------------------------------------------
+
+
+def create_pheramone_matrix(number_of_rows, value):
+    matrix = []
+    row = [value] * number_of_rows
+    for i in range(number_of_rows):
+        matrix.append(row)
+    return matrix
+
+
+def initialize_ants(number_of_ants):
+    ants = []
+    for i in range(number_of_ants):
+        ants.append(ant(num_cities))
+    return ants
+
+
+#----------------------------------calculate the weight of the final tour-----------------
+
+def calculate_tour_length(tour):
+    weights = 0
+    print(tour)
+    for i in range(num_cities-1):
+        weights = weights + dist_matrix[tour[i]][tour[i+1]]
+    weights = weights + dist_matrix[tour[-1]][tour[0]]
+    return weights
+#------------------------------------------nearest neighbour search to create the initial phermone level
+def nearest_neighbour_search():
+    visited_cities = [False]*num_cities
+    visited_cities[0] = True
+    path_length = 0
+    current_city = 0
+    path = [0]
+    for i in range(num_cities-1):
+        nearest = None
+        min_distance = float('inf')
+        for city in range(num_cities):
+            if not visited_cities[city]:
+                dist = dist_matrix[current_city][city]
+                if dist < min_distance:
+                    nearest = city
+                    min_distance = dist
+        visited_cities[nearest] = True
+        path.append(nearest)
+        current_city = nearest
+    return calculate_tour_length(path), path
+
+
+
+#----------------------------------update pheremone matrix using the paths
+
+def update_pheremones(paths, pheremone_matrix, row):
+    for i in range(num_cities):
+        for j in range(num_cities):
+            pheremone_matrix[i][j] = pheremone_matrix[i][j] * (1-row)
+    #decays the existing pheremones
+
+    #this gets the tour lengths from the path. then it goes through and updates the pheremones
+    tour_lengths = []
+    for path in paths:
+        #get the path lengths
+        tour_lengths.append(calculate_tour_length(path))
+        #update the pheremones for each path
+        for i in range(len(path)-1):
+            city1 = path[i]
+            city2 = path[i+1]
+
+            distance = dist_matrix[city1][city2]
+            pheremone_matrix[city1][city2] = pheremone_matrix[city1][city2] + 1/ distance
+
+        pheremone_matrix[path[-1]][path[0]] = pheremone_matrix[path[-1]][path[0]] + 1 / distance
+            #this adds the new layed ddown pheremones that are inversely prop to distance
+    ants_tour_length = min(tour_lengths)
+    ants_tour = paths[tour_lengths.index(ants_tour_length)]
+    return pheremone_matrix, ants_tour, ants_tour_length
+
+#---------------------------------main loop -----------------------
+def ant_search(no_ants,  row, alpha, beta, duration):
+    ''''''
+    best_length, best_path= nearest_neighbour_search()  #use NLL to find the best length and path initially
+    initial_pheremones = num_cities/best_length
+    #create ants and the pheremone matrix
+    ants = initialize_ants(no_ants)
+    pheramone_matrix = create_pheramone_matrix(num_cities, initial_pheremones)
+    ##main loop to generate searches
+    start_time = time.time()
+    #while time.time() - start_time < duration:
+    itterations = 0
+    while itterations < 10:
+        paths = []
+        for ant in ants:
+            paths.append(ant.choose_next(pheramone_matrix, dist_matrix, alpha, beta))
+            ant.reset(num_cities)
+        pheramone_matrix, strongest_path, strongest_path_length = update_pheremones(paths, pheramone_matrix, row)
+        
+        #make sure the best path is assessed and changed if needs be
+        if best_length > strongest_path_length:
+            best_length = strongest_path_length
+            best_path = strongest_path
+        print(best_length, best_path)
+        itterations = itterations +1
+    return best_path, best_length
+
+
+number_ants = 1
+row = 0.5
+alpha = 2
+beta = 5
+duration = 3
+tour, tour_length = ant_search(number_ants, row, alpha, beta, duration)
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
@@ -360,7 +560,6 @@ see if improvement '''
 ############
 # DO NOT TOUCH OR ALTER THE CODE BELOW THIS POINT! YOU HAVE BEEN WARNED!
 ############
-
 flag = "good"
 length = len(tour)
 for i in range(0, length):

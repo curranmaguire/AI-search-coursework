@@ -11,6 +11,8 @@
 # DO NOT INCLUDE ANY COMMENTS ON A LINE WHERE YOU IMPORT A MODULE.
 ############
 
+import threading
+from random import randint
 import os
 import sys
 import time
@@ -339,24 +341,128 @@ added_note = ""
 # NOW YOUR CODE SHOULD BEGIN.
 ############
 
-'''potential places to improve the genetic algorithm apply one of these crossover methods 
-Edge Recombination Crossover (ERX)
-Cycle Crossover (CX)
-see if improvement '''
+
+# num_cities and num_cities_as_string are variables
+
+# -------------------------setup populations
+
+def generate_initial_tours():
+    cities_list = list(range(num_cities))
+    route = [0]*len(cities_list)
+    for i in range(num_cities):
+        route[i] = cities_list.pop(randint(0, len(cities_list)-1))
+    return route
 
 
+def calculate_tour_length(route):
+    # go into matrix get wieghts of route then add to values
+
+    weights = 0
+    for i in range(num_cities-1):
+        weights = weights + dist_matrix[route[i]][route[i+1]]
+    weights = weights + dist_matrix[route[-1]][route[0]]
+    return weights
 
 
+def calculate_fitness(pop):
+    fit = []
+    for i in range(len(pop)):
+        fit.append(calculate_tour_length(pop[i]))
+    return fit
 
 
+def create_population(pop_size):
+    i = 0
+    population = []
+    fitness = []
+    while i < pop_size:
+        temp = generate_initial_tours()
+        fitness.append(calculate_tour_length(temp))
+        population.append(temp)
+        i = i+1
+    return population, fitness
+
+# -----------------------------creating new generation function
 
 
+def weighted_selection(population, fitness):
+    '''use tournament selection 
+    pick a random sample of individuals equal to the tounament size 
+    and keep the fittest indicidual'''
+    best_individual = None
+    best_fitness = float('inf')
+
+    for _ in range(tournament_size):
+        index = random.randint(0, len(population) - 1)
+        individual = population[index]
+        individual_fitness = fitness[index]
+
+        if individual_fitness < best_fitness:
+            best_individual = individual
+            best_fitness = individual_fitness
+
+    return best_individual
 
 
+def crossover(parent1, parent2):
+    end = random.sample(range(num_cities), 1)[0]
+    child = [-1] * num_cities
+    child[end] = parent1[end]
+
+    for i, city in enumerate(parent2[end:] + parent2[:end]):
+        if city not in child:
+            pos = (end + i) % num_cities
+            child[pos] = city
+    return child
 
 
+def mutate(child):
+
+    idx1, idx2 = random.sample(range(num_cities), 2)
+    child[idx1], child[idx2] = child[idx2], child[idx1]
+    return child
 
 
+def procede_generation(pop, fit):
+
+    newP = []
+    while len(newP) < population_size:
+        parent1 = weighted_selection(pop, fit)
+        parent2 = weighted_selection(pop, fit)
+        child = crossover(parent1, parent2)
+        if random.random() < mutation_probability:
+            mutate(child)
+        newP.append(child)
+    return newP
+
+
+def best_tour(pop, fit):
+    min_fitness = min(fit)
+    best_tour = pop[fit.index(min_fitness)]
+    return best_tour, min_fitness
+
+
+def genetic_algorithm():
+
+    population, fitness = create_population(population_size)
+    start_time = time.time()
+    while time.time() - start_time < duration:
+
+        population = procede_generation(population, fitness)
+        fitness = calculate_fitness(population)
+
+        tour, tour_length = best_tour(population, fitness)
+
+    return tour, tour_length
+
+
+population_size = 10
+crossover_probability = 0.8
+mutation_probability = 0.3
+tournament_size = 5
+
+duration = 10
+tour, tour_length = genetic_algorithm()
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
@@ -374,7 +480,6 @@ see if improvement '''
 ############
 # DO NOT TOUCH OR ALTER THE CODE BELOW THIS POINT! YOU HAVE BEEN WARNED!
 ############
-
 flag = "good"
 length = len(tour)
 for i in range(0, length):
