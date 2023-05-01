@@ -360,7 +360,7 @@ def calculate_tour_length(route):
     weights = 0
     for i in range(num_cities-1):
         weights = weights + dist_matrix[route[i]][route[i+1]]
-    weights = weights + dist_matrix[route[0]][route[-1]]
+    weights = weights + dist_matrix[route[-1]][route[0]]
     return weights
 
 
@@ -458,10 +458,10 @@ def genetic_algorithm():
 
 population_size = 10
 crossover_probability = 0.8
-mutation_probability = 0.1
+mutation_probability = 0.3
 tournament_size = 5
 
-duration = 55
+duration = 10
 tour, tour_length = genetic_algorithm()
 
 
