@@ -11,7 +11,7 @@
 # DO NOT INCLUDE ANY COMMENTS ON A LINE WHERE YOU IMPORT A MODULE.
 ############
 
-import threading
+
 from random import randint
 import os
 import sys
@@ -366,6 +366,7 @@ def calculate_tour_length(route):
 
 def calculate_fitness(pop):
     fit = []
+
     for i in range(len(pop)):
         fit.append(calculate_tour_length(pop[i]))
     return fit
@@ -377,10 +378,18 @@ def create_population(pop_size):
     fitness = []
     while i < pop_size:
         temp = generate_initial_tours()
-        fitness.append(calculate_tour_length(temp))
         population.append(temp)
         i = i+1
-    return population, fitness
+    return population
+
+
+def create_islands(no_of_islands):
+    islands = []
+    for i in range(no_of_islands):
+        population = create_population(population_size)
+
+        islands.append(population)
+    return islands
 
 # -----------------------------creating new generation function
 
@@ -423,6 +432,31 @@ def mutate(child):
     return child
 
 
+def two_opt(tour):
+    tour_size = len(tour)
+    best_improvement = 0
+    best_i = None
+    best_j = None
+
+    for i in range(tour_size - 1):
+        for j in range(i + 2, tour_size):
+            old_distance = dist_matrix[tour[i]][tour[i+1]] + \
+                dist_matrix[tour[j]][tour[(j+1) % tour_size]]
+            new_distance = dist_matrix[tour[i]][tour[j]] + \
+                dist_matrix[tour[i+1]][tour[(j+1) % tour_size]]
+            improvement = old_distance - new_distance
+
+            if improvement > best_improvement:
+                best_improvement = improvement
+                best_i = i
+                best_j = j
+
+    if best_improvement > 0:
+        tour[best_i+1:best_j+1] = reversed(tour[best_i+1:best_j+1])
+
+    return tour
+
+
 def procede_generation(pop, fit):
 
     newP = []
@@ -432,6 +466,7 @@ def procede_generation(pop, fit):
         child = crossover(parent1, parent2)
         if random.random() < mutation_probability:
             mutate(child)
+        child = two_opt(child)
         newP.append(child)
     return newP
 
@@ -442,27 +477,58 @@ def best_tour(pop, fit):
     return best_tour, min_fitness
 
 
-def genetic_algorithm():
+def genetic_algorithm(islands, island_id, migration_interval):
+    population = islands[island_id]
 
-    population, fitness = create_population(population_size)
-    start_time = time.time()
-    while time.time() - start_time < duration:
+    fitness = calculate_fitness(population)
+    itterations = 0
+    # itterate over the population
+    while itterations < migration_interval:
 
         population = procede_generation(population, fitness)
         fitness = calculate_fitness(population)
+        itterations = itterations + 1
 
-        tour, tour_length = best_tour(population, fitness)
-
-    return tour, tour_length
+    return population
 
 
-population_size = 10
-crossover_probability = 0.8
-mutation_probability = 0.3
+def migrate_islands(islands, migration_number, number_of_islands):
+    migration_indexes = [random.randint(0,
+                                        population_size-1) for i in range(migration_number)]
+    for j in migration_indexes:
+        for i in range(number_of_islands-1):
+            islands[i][j] = islands[i+1][j]
+        islands[-1][j] = islands[0][j]
+    return islands
+
+
+population_size = 8
+mutation_probability = 0.4
 tournament_size = 5
-
+number_of_islands = 4
+migration_delay = 12
+migration_size = population_size//4
 duration = 10
-tour, tour_length = genetic_algorithm()
+
+islands = create_islands(number_of_islands)
+
+
+start_time = time.time()
+while time.time() - start_time < duration:
+    for i in range(number_of_islands):
+        islands[i] = genetic_algorithm(islands, i, migration_delay)
+    islands = migrate_islands(islands, migration_size, number_of_islands)
+final_tours = []
+for population in islands:
+    fitness = calculate_fitness(population)
+    final_tours.append(best_tour(population, fitness))
+tour, tour_length = max(final_tours, key=lambda x: x[1])
+
+'''need to run a process and return it's values to a certain function
+then after x itterations return it
+swap values 
+run again 
+until timer runs out. '''
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
