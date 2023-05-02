@@ -461,7 +461,7 @@ population_size = 10
 mutation_probability = 0.3
 tournament_size = 5
 
-duration = 10
+duration = 600
 tour, tour_length = genetic_algorithm()
 
 

@@ -386,87 +386,13 @@ pheremone depositing can be done by using 1/Lk(t)
 use equations from slides 4,5 to get the rates of decay and putting down
 alpha = 1, beta 2<B<5; row(p) = 0.5 N=no cities t0 = N/Lnn
 '''
-
-
-class ant:
-    def __init__(self, num_cities):
-        self.path = [0]
-        self.current_city = 0
-        self.not_visited_cities = list(range(1, num_cities))
-
-    def visit_city(self, city):
-        self.path.append(city)
-        self.not_visited_cities.pop(self.not_visited_cities.index(city))
-        self.current_city = city
-        return self.path
-
-    def has_visited(self, city):
-        return self.not_visited_city[city]
-
-    def reset(self, num_cities):
-        self.path = [0]
-        self.current_city = 0
-        self.not_visited_cities = list(range(1, num_cities))
-
-    def choose_next(self, pheremone_matrix, distance_matrix, alpha, beta):
-        '''recursively look at cities
-        create probabilites to decide on the next city to travel to
-        travel and call until the not_visited_cities is empty'''
-        # check iff the ant has visited all cities
-        if len(self.not_visited_cities) == 0:
-            return self.visit_city(self.not_visited_cities[0])
-        # create the probability matrix for the ants
-        probabilites = []
-        for city in self.not_visited_cities:
-            # calulat the probabilites and create an array of them
-            pheremone = pheremone_matrix[self.current_city][city]**alpha
-            distance = distance_matrix[self.current_city][city] ** beta
-            if distance == 0:
-                probability = 0
-            else:
-                probability = pheremone / distance
-            probabilites.append(probability)
-
-        probabilites = [p/sum(probabilites) for p in probabilites]
-        next_city = random.choices(
-            self.not_visited_cities, weights=probabilites, k=1)[0]
-        self.visit_city(next_city)
-
-        return self.choose_next(pheremone_matrix, distance_matrix, alpha, beta)
-
-
 # ---------------------initial setup-----------------------------------------------
-
-
-def create_pheramone_matrix(number_of_rows, value):
-    matrix = []
-    row = [value] * number_of_rows
-    for i in range(number_of_rows):
-        matrix.append(row)
-    return matrix
-
-
-def initialize_ants(number_of_ants):
-    ants = []
-    for i in range(number_of_ants):
-        ants.append(ant(num_cities))
-    return ants
-
-
-# ----------------------------------calculate the weight of the final tour-----------------
-
-def calculate_tour_length(tour):
-    weights = 0
-    for i in range(num_cities-1):
-        weights = weights + dist_matrix[tour[i]][tour[i+1]]
-    weights = weights + dist_matrix[tour[-1]][tour[0]]
-    return weights
-# ------------------------------------------nearest neighbour search to create the initial phermone level
 
 
 def nearest_neighbour_search():
     visited_cities = [False]*num_cities
     visited_cities[0] = True
+    path_length = 0
     current_city = 0
     path = [0]
     for i in range(num_cities-1):
@@ -481,77 +407,109 @@ def nearest_neighbour_search():
         visited_cities[nearest] = True
         path.append(nearest)
         current_city = nearest
-    return calculate_tour_length(path), path
+    return evaluate_solution(path, dist_matrix)
 
 
-# ----------------------------------update pheremone matrix using the paths
+def create_pheremone_matrix(n_cities, initial_pheromone):
+    return [[initial_pheromone for _ in range(n_cities)] for _ in range(n_cities)]
 
-def update_pheremones(paths, pheremone_matrix, row):
-    for i in range(num_cities):
-        for j in range(num_cities):
-            pheremone_matrix[i][j] = pheremone_matrix[i][j] * (1-row)
-    # decays the existing pheremones
 
-    # this gets the tour lengths from the path. then it goes through and updates the pheremones
-    tour_lengths = []
-    for path in paths:
-        # get the path lengths
-        tour_lengths.append(calculate_tour_length(path))
-        # update the pheremones for each path
-        for i in range(len(path)-1):
-            city1 = path[i]
-            city2 = path[i+1]
-            distance = dist_matrix[city1][city2]
-            if distance == 0:
-                pheremone_matrix[city1][city2] = 0
-            else:
-                pheremone_matrix[city1][city2] = pheremone_matrix[city1][city2] + 1 / distance
-        if distance == 0:
-            pheremone_matrix[city1][city2] = 0
+def calculate_probabilities(current_city, new_cities, pheromone_matrix, distance_matrix, alpha, beta):
+    total_sum = 0
+    probabilities = []
+    for city in new_cities:
+        pheromone = pheromone_matrix[current_city][city] ** alpha
+        if distance_matrix[current_city][city] > 0:
+
+            distance = (1 / distance_matrix[current_city][city]) ** beta
         else:
-            pheremone_matrix[path[-1]][path[0]
-                                       ] = pheremone_matrix[path[-1]][path[0]] + 1 / distance
-        # this adds the new layed ddown pheremones that are inversely prop to distance
-    ants_tour_length = min(tour_lengths)
-    ants_tour = paths[tour_lengths.index(ants_tour_length)]
-    return pheremone_matrix, ants_tour, ants_tour_length
-
-# ---------------------------------main loop -----------------------
+            distance = 1/2
+        total_sum += pheromone * distance
+        probabilities.append(pheromone * distance)
+    return [probability / total_sum for probability in probabilities]
 
 
-def ant_search(no_ants,  row, alpha, beta, duration):
-    ''''''
-    best_length, best_path = nearest_neighbour_search(
-    )  # use NLL to find the best length and path initially
-    initial_pheremones = num_cities/best_length
-    # create ants and the pheremone matrix
-    ants = initialize_ants(no_ants)
-    pheramone_matrix = create_pheramone_matrix(num_cities, initial_pheremones)
-    # main loop to generate searches
+class ant:
+    def __init__(self, num_cities):
+        self.path = [0]
+        self.current_city = 0
+        self.new_cities = set(range(num_cities)) - {self.path[0]}
+
+    def create_path(self,  pheromone_matrix, distance_matrix, alpha, beta):
+
+        while self.new_cities:
+            probabilities = calculate_probabilities(
+                self.path[-1], self.new_cities, pheromone_matrix, distance_matrix, alpha, beta)
+            next_city = random.choices(
+                list(self.new_cities), probabilities)[0]
+            self.new_cities.remove(next_city)
+            self.path.append(next_city)
+
+        return self.path
+
+
+def evaluate_solution(tour, dist_matrix):
+    weights = 0
+
+    for i in range(num_cities-1):
+        weights = weights + dist_matrix[tour[i]][tour[i+1]]
+    weights = weights + dist_matrix[tour[-1]][tour[0]]
+    return weights
+
+
+def update_pheromones(pheromone_matrix, solutions, solution_scores, rho, Q):
+    for i in range(len(pheromone_matrix)):
+        for j in range(len(pheromone_matrix[i])):
+            pheromone_matrix[i][j] = pheromone_matrix[i][j] * (1 - rho)
+
+    for solution, score in zip(solutions, solution_scores):
+        pheromone_to_deposit = Q / score
+        for i in range(len(solution) - 1):
+            pheromone_matrix[solution[i]][solution[i + 1]
+                                          ] += pheromone_to_deposit
+        pheromone_matrix[solution[-1]][solution[0]] += pheromone_to_deposit
+
+
+def initialize_ants(number_of_ants):
+    ants = []
+    for i in range(number_of_ants):
+        ants.append(ant(num_cities))
+    return ants
+
+
+def ant_colony_optimization(distance_matrix, n_ants, duration, initial_pheromone, alpha, beta=5, rho=0.5, Q=100):
+
+    pheromone_matrix = create_pheremone_matrix(num_cities, initial_pheromone)
+    best_solution, best_score = None, float('inf')
     start_time = time.time()
     while time.time() - start_time < duration:
 
-        paths = []
-        for ant in ants:
-            paths.append(ant.choose_next(
-                pheramone_matrix, dist_matrix, alpha, beta))
-            ant.reset(num_cities)
-        pheramone_matrix, strongest_path, strongest_path_length = update_pheremones(
-            paths, pheramone_matrix, row)
+        ants = initialize_ants(n_ants)
+        solutions = [j.create_path(
+            pheromone_matrix, distance_matrix, alpha, beta) for j in ants]
+        solution_scores = [evaluate_solution(
+            solution, distance_matrix) for solution in solutions]
 
-        # make sure the best path is assessed and changed if needs be
-        if best_length > strongest_path_length:
-            best_length = strongest_path_length
-            best_path = strongest_path
-    return best_path, best_length
+        if min(solution_scores) < best_score:
+            current_best_score = min(solution_scores)
+            best_solution, best_score = solutions[solution_scores.index(
+                current_best_score)], current_best_score
+
+        update_pheromones(pheromone_matrix, solutions, solution_scores, rho, Q)
+
+    return best_solution, best_score
 
 
-number_ants = 1
-row = 0.2
+n_ants = 10
+duration = 600
+initial_pheromone = num_cities/nearest_neighbour_search()
 alpha = 1
-beta = 1
-duration = 10
-tour, tour_length = ant_search(number_ants, row, alpha, beta, duration)
+beta = 5
+rho = 0.5
+Q = 100
+
+tour, tour_length = ant_colony_optimization(
+    dist_matrix, n_ants, duration, initial_pheromone=initial_pheromone, alpha=alpha, beta=beta, rho=rho, Q=Q)
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)

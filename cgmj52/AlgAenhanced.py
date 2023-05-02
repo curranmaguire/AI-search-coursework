@@ -508,7 +508,7 @@ tournament_size = 5
 number_of_islands = 4
 migration_delay = 12
 migration_size = population_size//4
-duration = 10
+duration = 600
 
 islands = create_islands(number_of_islands)
 
