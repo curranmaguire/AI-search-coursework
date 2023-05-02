@@ -292,8 +292,8 @@ my_user_name = "cgmj52"
 ############
 # END OF SECTOR 6 (IGNORE THIS COMMENT)
 
-my_first_name = "curran"
-my_last_name = "maguire"
+my_first_name = ""
+my_last_name = ""
 
 # START OF SECTOR 7 (IGNORE THIS COMMENT)
 ############
@@ -338,55 +338,6 @@ added_note = ""
 ############
 # NOW YOUR CODE SHOULD BEGIN.
 ############
-
-'''ant colony steps
-need a matrix of pheramones that correspond to the edges of the graph
-our ants will
-    move from a source vertex until it reaches the destination vertex
-    then return back along the main path to the source. Not following loops
-    deposit pheremone on the edge it traversed as it returns. it then repeats the cycle
-    each ant move is synchronized. each move evaporatees pheramone
-    pheramones influence an ants descision probibalistically
-    this gives out a graph with pheramones which needs to have a path extracted from it
-you can use greedy searches or any other to findthe best path.
-
-skeleton params
-max number of itterations
-number of ants N
-initial pheremone deposit which is greatetr then 0
-pheramon decay rate
-pheramone deposit which is dependant on the edge and the ant
-
-skeleton
-input is a graph, and skeleton params
-initialize the pheremone level
-best solution
-place ants on vertices (random or specific)
-while itterations
-    for all ants
-        build a solution by building a trail with |V| edges
-        using the heuristic desirablity and phermone levels of edges
-        as ants are building trails the pheremons do not change
-        ant cycles are synchronized
-    look at the cost of their trails
-    if best is less
-        update best
-    deposit/evaporate pheramone
-    increment
-return best
-
-initial phermones are taken as N/length of nearest-neighbour algo
-city to city transition depends upon,
-    wether the destination city has been visited by an ant before.
-    heuristic desirability 1/distance capped at x
-    current pheromone level
-    use the probability function from lectures try understand it
-    end trail when all cities are in the immovable ones
-pheremone depositing can be done by using 1/Lk(t)
-use equations from slides 4,5 to get the rates of decay and putting down
-alpha = 1, beta 2<B<5; row(p) = 0.5 N=no cities t0 = N/Lnn
-'''
-# ---------------------initial setup-----------------------------------------------
 
 
 def nearest_neighbour_search():
@@ -501,7 +452,7 @@ def ant_colony_optimization(distance_matrix, n_ants, duration, initial_pheromone
 
 
 n_ants = 10
-duration = 600
+duration = 55
 initial_pheromone = num_cities/nearest_neighbour_search()
 alpha = 1
 beta = 5
@@ -527,6 +478,7 @@ tour, tour_length = ant_colony_optimization(
 ############
 # DO NOT TOUCH OR ALTER THE CODE BELOW THIS POINT! YOU HAVE BEEN WARNED!
 ############
+
 flag = "good"
 length = len(tour)
 for i in range(0, length):

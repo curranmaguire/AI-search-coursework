@@ -1,0 +1,5 @@
+USER = cgmj52 (curran maguire),
+ALGORITHM CODE = AC, NAME OF CITY-FILE = AISearchfile026.txt,
+SIZE = 26, TOUR LENGTH = 1793,
+0,5,12,13,17,20,11,22,2,1,21,25,15,18,10,3,6,23,24,9,7,8,19,16,4,14,
+NOTE = 

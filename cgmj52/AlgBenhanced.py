@@ -11,8 +11,6 @@
 # DO NOT INCLUDE ANY COMMENTS ON A LINE WHERE YOU IMPORT A MODULE.
 ############
 
-import threading
-from random import randint
 import os
 import sys
 import time
@@ -305,7 +303,7 @@ my_last_name = "maguire"
 ############
 # END OF SECTOR 7 (IGNORE THIS COMMENT)
 
-algorithm_code = "GA"
+algorithm_code = "AC"
 
 # START OF SECTOR 8 (IGNORE THIS COMMENT)
 ############
@@ -341,128 +339,177 @@ added_note = ""
 # NOW YOUR CODE SHOULD BEGIN.
 ############
 
+'''ant colony steps
+need a matrix of pheramones that correspond to the edges of the graph
+our ants will
+    move from a source vertex until it reaches the destination vertex
+    then return back along the main path to the source. Not following loops
+    deposit pheremone on the edge it traversed as it returns. it then repeats the cycle
+    each ant move is synchronized. each move evaporatees pheramone
+    pheramones influence an ants descision probibalistically
+    this gives out a graph with pheramones which needs to have a path extracted from it
+you can use greedy searches or any other to findthe best path.
 
-# num_cities and num_cities_as_string are variables
+skeleton params
+max number of itterations
+number of ants N
+initial pheremone deposit which is greatetr then 0
+pheramon decay rate
+pheramone deposit which is dependant on the edge and the ant
 
-# -------------------------setup populations
+skeleton
+input is a graph, and skeleton params
+initialize the pheremone level
+best solution
+place ants on vertices (random or specific)
+while itterations
+    for all ants
+        build a solution by building a trail with |V| edges
+        using the heuristic desirablity and phermone levels of edges
+        as ants are building trails the pheremons do not change
+        ant cycles are synchronized
+    look at the cost of their trails
+    if best is less
+        update best
+    deposit/evaporate pheramone
+    increment
+return best
 
-def generate_initial_tours():
-    cities_list = list(range(num_cities))
-    route = [0]*len(cities_list)
-    for i in range(num_cities):
-        route[i] = cities_list.pop(randint(0, len(cities_list)-1))
-    return route
+initial phermones are taken as N/length of nearest-neighbour algo
+city to city transition depends upon,
+    wether the destination city has been visited by an ant before.
+    heuristic desirability 1/distance capped at x
+    current pheromone level
+    use the probability function from lectures try understand it
+    end trail when all cities are in the immovable ones
+pheremone depositing can be done by using 1/Lk(t)
+use equations from slides 4,5 to get the rates of decay and putting down
+alpha = 1, beta 2<B<5; row(p) = 0.5 N=no cities t0 = N/Lnn
+'''
+# ---------------------initial setup-----------------------------------------------
 
 
-def calculate_tour_length(route):
-    # go into matrix get wieghts of route then add to values
-
-    weights = 0
+def nearest_neighbour_search():
+    visited_cities = [False]*num_cities
+    visited_cities[0] = True
+    path_length = 0
+    current_city = 0
+    path = [0]
     for i in range(num_cities-1):
-        weights = weights + dist_matrix[route[i]][route[i+1]]
-    weights = weights + dist_matrix[route[-1]][route[0]]
+        nearest = None
+        min_distance = float('inf')
+        for city in range(num_cities):
+            if not visited_cities[city]:
+                dist = dist_matrix[current_city][city]
+                if dist < min_distance:
+                    nearest = city
+                    min_distance = dist
+        visited_cities[nearest] = True
+        path.append(nearest)
+        current_city = nearest
+    return evaluate_solution(path, dist_matrix)
+
+
+def create_pheremone_matrix(n_cities, initial_pheromone):
+    return [[initial_pheromone for _ in range(n_cities)] for _ in range(n_cities)]
+
+
+def calculate_probabilities(current_city, new_cities, pheromone_matrix, distance_matrix, alpha, beta):
+    total_sum = 0
+    probabilities = []
+    for city in new_cities:
+        pheromone = pheromone_matrix[current_city][city] ** alpha
+        if distance_matrix[current_city][city] > 0:
+
+            distance = (1 / distance_matrix[current_city][city]) ** beta
+        else:
+            distance = 1/2
+        total_sum += pheromone * distance
+        probabilities.append(pheromone * distance)
+    return [probability / total_sum for probability in probabilities]
+
+
+class ant:
+    def __init__(self, num_cities):
+        self.path = [0]
+        self.current_city = 0
+        self.new_cities = set(range(num_cities)) - {self.path[0]}
+
+    def create_path(self,  pheromone_matrix, distance_matrix, alpha, beta):
+
+        while self.new_cities:
+            probabilities = calculate_probabilities(
+                self.path[-1], self.new_cities, pheromone_matrix, distance_matrix, alpha, beta)
+            next_city = random.choices(
+                list(self.new_cities), probabilities)[0]
+            self.new_cities.remove(next_city)
+            self.path.append(next_city)
+
+        return self.path
+
+
+def evaluate_solution(tour, dist_matrix):
+    weights = 0
+
+    for i in range(num_cities-1):
+        weights = weights + dist_matrix[tour[i]][tour[i+1]]
+    weights = weights + dist_matrix[tour[-1]][tour[0]]
     return weights
 
 
-def calculate_fitness(pop):
-    fit = []
-    for i in range(len(pop)):
-        fit.append(calculate_tour_length(pop[i]))
-    return fit
+def update_pheromones(pheromone_matrix, solutions, solution_scores, rho, Q):
+    for i in range(len(pheromone_matrix)):
+        for j in range(len(pheromone_matrix[i])):
+            pheromone_matrix[i][j] = pheromone_matrix[i][j] * (1 - rho)
+
+    for solution, score in zip(solutions, solution_scores):
+        pheromone_to_deposit = Q / score
+        for i in range(len(solution) - 1):
+            pheromone_matrix[solution[i]][solution[i + 1]
+                                          ] += pheromone_to_deposit
+        pheromone_matrix[solution[-1]][solution[0]] += pheromone_to_deposit
 
 
-def create_population(pop_size):
-    i = 0
-    population = []
-    fitness = []
-    while i < pop_size:
-        temp = generate_initial_tours()
-        fitness.append(calculate_tour_length(temp))
-        population.append(temp)
-        i = i+1
-    return population, fitness
-
-# -----------------------------creating new generation function
+def initialize_ants(number_of_ants):
+    ants = []
+    for i in range(number_of_ants):
+        ants.append(ant(num_cities))
+    return ants
 
 
-def weighted_selection(population, fitness):
-    '''use tournament selection 
-    pick a random sample of individuals equal to the tounament size 
-    and keep the fittest indicidual'''
-    best_individual = None
-    best_fitness = float('inf')
+def ant_colony_optimization(distance_matrix, n_ants, duration, initial_pheromone, alpha, beta=5, rho=0.5, Q=100):
 
-    for _ in range(tournament_size):
-        index = random.randint(0, len(population) - 1)
-        individual = population[index]
-        individual_fitness = fitness[index]
-
-        if individual_fitness < best_fitness:
-            best_individual = individual
-            best_fitness = individual_fitness
-
-    return best_individual
-
-
-def crossover(parent1, parent2):
-    end = random.sample(range(num_cities), 1)[0]
-    child = [-1] * num_cities
-    child[end] = parent1[end]
-
-    for i, city in enumerate(parent2[end:] + parent2[:end]):
-        if city not in child:
-            pos = (end + i) % num_cities
-            child[pos] = city
-    return child
-
-
-def mutate(child):
-
-    idx1, idx2 = random.sample(range(num_cities), 2)
-    child[idx1], child[idx2] = child[idx2], child[idx1]
-    return child
-
-
-def procede_generation(pop, fit):
-
-    newP = []
-    while len(newP) < population_size:
-        parent1 = weighted_selection(pop, fit)
-        parent2 = weighted_selection(pop, fit)
-        child = crossover(parent1, parent2)
-        if random.random() < mutation_probability:
-            mutate(child)
-        newP.append(child)
-    return newP
-
-
-def best_tour(pop, fit):
-    min_fitness = min(fit)
-    best_tour = pop[fit.index(min_fitness)]
-    return best_tour, min_fitness
-
-
-def genetic_algorithm():
-
-    population, fitness = create_population(population_size)
+    pheromone_matrix = create_pheremone_matrix(num_cities, initial_pheromone)
+    best_solution, best_score = None, float('inf')
     start_time = time.time()
     while time.time() - start_time < duration:
 
-        population = procede_generation(population, fitness)
-        fitness = calculate_fitness(population)
+        ants = initialize_ants(n_ants)
+        solutions = [j.create_path(
+            pheromone_matrix, distance_matrix, alpha, beta) for j in ants]
+        solution_scores = [evaluate_solution(
+            solution, distance_matrix) for solution in solutions]
 
-        tour, tour_length = best_tour(population, fitness)
+        if min(solution_scores) < best_score:
+            current_best_score = min(solution_scores)
+            best_solution, best_score = solutions[solution_scores.index(
+                current_best_score)], current_best_score
 
-    return tour, tour_length
+        update_pheromones(pheromone_matrix, solutions, solution_scores, rho, Q)
+
+    return best_solution, best_score
 
 
-population_size = 10
-
-mutation_probability = 0.3
-tournament_size = 5
-
+n_ants = 10
 duration = 55
-tour, tour_length = genetic_algorithm()
+initial_pheromone = num_cities/nearest_neighbour_search()
+alpha = 1
+beta = 5
+rho = 0.5
+Q = 100
+
+tour, tour_length = ant_colony_optimization(
+    dist_matrix, n_ants, duration, initial_pheromone=initial_pheromone, alpha=alpha, beta=beta, rho=rho, Q=Q)
 
 
 # START OF SECTOR 9 (IGNORE THIS COMMENT)
