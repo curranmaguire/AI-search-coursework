@@ -457,7 +457,7 @@ def genetic_algorithm():
 
 
 population_size = 10
-crossover_probability = 0.8
+
 mutation_probability = 0.3
 tournament_size = 5
 
